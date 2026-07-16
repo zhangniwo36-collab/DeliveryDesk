@@ -3,11 +3,23 @@ import test from "node:test";
 
 import {
   addTask,
+  parseStoredProject,
   reviewDeliverable,
   seedProject,
   summarizeProject,
   toggleTask,
 } from "../app/lib/delivery.ts";
+
+test("rejects malformed or structurally invalid persisted projects", () => {
+  assert.equal(parseStoredProject("not-json"), null);
+  assert.equal(parseStoredProject("{}"), null);
+  assert.equal(parseStoredProject(JSON.stringify({ ...seedProject, tasks: [] })), null);
+});
+
+test("restores a valid persisted project", () => {
+  const restored = parseStoredProject(JSON.stringify(seedProject));
+  assert.deepEqual(restored, seedProject);
+});
 
 test("summarizes delivery progress, budget, and outstanding approvals", () => {
   const summary = summarizeProject(seedProject);
