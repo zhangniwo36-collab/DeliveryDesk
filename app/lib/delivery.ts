@@ -25,6 +25,52 @@ export type DeliveryProject = {
 
 export const team = ["Maya Chen", "Jon Bell", "Priya Shah"];
 
+const taskStatuses: TaskStatus[] = ["not-started", "in-progress", "blocked", "done"];
+const reviewStatuses: ReviewStatus[] = ["pending", "approved", "changes-requested"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+export function isDeliveryProject(value: unknown): value is DeliveryProject {
+  if (!isRecord(value)) return false;
+  const { name, client, budget, spent, dueDate, milestones, tasks, deliverables, risks, activity } = value;
+  return isNonEmptyString(name)
+    && isNonEmptyString(client)
+    && typeof budget === "number" && Number.isFinite(budget) && budget > 0
+    && typeof spent === "number" && Number.isFinite(spent) && spent >= 0
+    && isNonEmptyString(dueDate)
+    && Array.isArray(milestones) && milestones.length > 0 && milestones.every((item) => isRecord(item)
+      && isNonEmptyString(item.id) && isNonEmptyString(item.name) && isNonEmptyString(item.due)
+      && ["complete", "active", "upcoming"].includes(String(item.state)))
+    && Array.isArray(tasks) && tasks.length > 0 && tasks.every((item) => isRecord(item)
+      && isNonEmptyString(item.id) && isNonEmptyString(item.title) && isNonEmptyString(item.owner)
+      && isNonEmptyString(item.milestoneId) && isNonEmptyString(item.due)
+      && taskStatuses.includes(item.status as TaskStatus))
+    && Array.isArray(deliverables) && deliverables.every((item) => isRecord(item)
+      && isNonEmptyString(item.id) && isNonEmptyString(item.title) && isNonEmptyString(item.version)
+      && isNonEmptyString(item.owner) && reviewStatuses.includes(item.status as ReviewStatus))
+    && Array.isArray(risks) && risks.every((item) => isRecord(item)
+      && isNonEmptyString(item.id) && isNonEmptyString(item.title) && isNonEmptyString(item.owner)
+      && ["high", "medium"].includes(String(item.impact)) && ["open", "mitigated"].includes(String(item.status)))
+    && Array.isArray(activity) && activity.every((item) => isRecord(item)
+      && isNonEmptyString(item.id) && isNonEmptyString(item.message) && isNonEmptyString(item.at));
+}
+
+export function parseStoredProject(raw: string | null): DeliveryProject | null {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return isDeliveryProject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export const seedProject: DeliveryProject = {
   name: "Northstar Commerce Redesign",
   client: "Northstar Retail",
@@ -55,7 +101,7 @@ export const seedProject: DeliveryProject = {
     { id: "risk-3", title: "Mobile navigation scope", impact: "medium", owner: "Maya Chen", status: "mitigated" },
   ],
   activity: [
-    { id: "activity-1", message: "Maya shared Checkout prototype 路 Version 3", at: "Today, 9:42 AM" },
+    { id: "activity-1", message: "Maya shared Checkout prototype · Version 3", at: "Today, 9:42 AM" },
     { id: "activity-2", message: "Priya completed Responsive product templates", at: "Yesterday, 4:18 PM" },
   ],
 };
@@ -79,14 +125,14 @@ export function toggleTask(project: DeliveryProject, taskId: string): DeliveryPr
   };
 }
 
-export function reviewDeliverable(project: DeliveryProject, deliverableId: string, status: Exclude<ReviewStatus, "pending">): DeliveryProject {
+export function reviewDeliverable(project: DeliveryProject, deliverableId: string, status: Exclude<ReviewStatus, "pending">, activityMessage?: string): DeliveryProject {
   const deliverable = project.deliverables.find((item) => item.id === deliverableId);
   if (!deliverable) return project;
   const verb = status === "approved" ? "approved" : "requested changes to";
   return {
     ...project,
     deliverables: project.deliverables.map((item) => item.id === deliverableId ? { ...item, status } : item),
-    activity: [{ id: `activity-${Date.now()}`, message: `Client ${verb} ${deliverable.title}`, at: "Just now" }, ...project.activity],
+    activity: [{ id: `activity-${Date.now()}`, message: activityMessage ?? `Client ${verb} ${deliverable.title}`, at: "Just now" }, ...project.activity],
   };
 }
 
