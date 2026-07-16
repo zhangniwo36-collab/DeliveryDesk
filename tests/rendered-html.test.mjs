@@ -44,3 +44,23 @@ test("ships social preview metadata", async () => {
   assert.match(layout, /\/og\.png/);
 });
 
+test("uses deploy-safe fonts and declares the SVG favicon", async () => {
+  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(layout, /next\/font/);
+  assert.match(layout, /favicon\.svg/);
+});
+
+test("covers dialog keyboard behavior and complete bilingual interface copy", async () => {
+  const [modal, workspace, i18n] = await Promise.all([
+    readFile(new URL("../app/components/task-modal.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/delivery-workspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/i18n.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(modal, /event\.key === "Escape"/);
+  assert.match(modal, /previousFocus.*focus/);
+  assert.match(workspace, /targetLaunch/);
+  assert.match(workspace, /watchBeforeLaunch/);
+  assert.match(i18n, /entityCopy/);
+  assert.match(workspace, /localizeEntity/);
+});
+
